@@ -22,7 +22,7 @@ int main()
 	
 	*/
 
-	cv::Mat img = cv::imread("data/logo.png");
+	cv::Mat img = cv::imread("data/pug_170.jpg");
 	cv::namedWindow("OpenCV");
 	cv::imshow("OpenCV", img);
 	cv::waitKey(0);
