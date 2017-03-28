@@ -1,0 +1,11 @@
+http://answers.opencv.org/question/56655/how-to-use-a-custom-svm-with-hogdescriptor-in-python/
+
+http://answers.opencv.org/question/98517/hog-setsvmdetector-slow/
+
+https://github.com/opencv/opencv/blob/master/samples/cpp/train_HOG.cpp#L24
+
+http://www.pyimagesearch.com/2015/11/09/pedestrian-detection-opencv/
+
+http://www.pyimagesearch.com/2014/11/10/histogram-oriented-gradients-object-detection/
+
+https://github.com/DaHoC/trainHOG/blob/master/main.cpp
