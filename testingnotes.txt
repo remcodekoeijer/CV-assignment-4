@@ -1,0 +1,13 @@
+Use hog.detectMultiScale with the weighted output. 
+Output gives you vector of rectangles -> the bounding boxes
+OUtput gives you vector of weights -> how well a bounding box is working
+Play around with the parameters for better results
+
+NMS
+You get several bounding boxes in 1 image. These are all a result. You only want 1 result per image
+Basic idea: (from slides10, slide 35)
+• Sort detections based on detection score (highest first)
+• Iteratively remove bounding boxes that overlap with those with higher detection scores
+  So check how much both bounding boxes overlap. If they overlap for more than 50%, remove it. If not, it's possible it is a second detection.
+
+More info on NMS http://www.pyimagesearch.com/2014/11/17/non-maximum-suppression-object-detection-python/ 
