@@ -68,7 +68,7 @@ int main()
 	//resize the bounding images and the negative sample ones--------------------------------------
 	vector<Mat> resizedBoundingImages(numberOfImagesPos);  //use these on hog
 	vector<Mat> resizedNegImages(numberOfImagesNeg);
-	Size smallSize(200, 250);//set values to resize, whaaat values shoud we have?
+	Size smallSize(128, 128);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
 	for (int i = 0; i < numberOfImagesPos; i++)
 	{
 		resize(boundingImages[i], resizedBoundingImages[i], smallSize);
@@ -121,15 +121,19 @@ int main()
 		transpose(test, test);
 		test.row(0).copyTo(descriptorsT.row(i+ numberOfImagesPos));
 	}
-
+	
 	Ptr<TrainData> tData = TrainData::create(descriptorsT, ROW_SAMPLE, labelsMat);//create it or pass directly to the training part ,train<SVM>(trainingDataMat, ROW_SAMPLE, labelsMat, params);
+	
 	Ptr<SVM> svm = SVM::create();
 	//set parameters of svn
 	svm->setType(SVM::C_SVC);
 	svm->setKernel(SVM::LINEAR);
 	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
 	//train the svm
-	svm->train(descriptorsT, ROW_SAMPLE, labelsMat);
+	
+
+	svm->train(tData);
+	
 	//get support vectors
 	
 	Mat sv = svm->getSupportVectors();
