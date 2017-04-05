@@ -33,26 +33,117 @@ int main()
 	Done, i guess
 
 	*/
-	//get images names
+	//get images names--------------------------------------------------------------
 	vector<string> nameOfImagesPos;
 	vector<string> nameOfImagesNeg;
 	int numberOfImagesPos, numberOfImagesNeg;
 	getNameOfImages(nameOfImagesPos, "data/namePos.xml", numberOfImagesPos);
 	getNameOfImages(nameOfImagesNeg, "data/nameNeg.xml", numberOfImagesNeg);
-	//store those images
+	//store those images------------------------------------------------------------
 	vector<Mat> allImgsPos;
-	for (int i = 0; i < numberOfImagesPos; i++)
-		allImgsPos.push_back(imread(nameOfImagesPos[i], IMREAD_GRAYSCALE));
 	vector<Mat> allImgsNeg;
 	for (int i = 0; i < numberOfImagesPos; i++)
-		allImgsNeg.push_back(imread(nameOfImagesNeg[i], IMREAD_GRAYSCALE));
+	{
+		allImgsPos.push_back(imread("data/" + nameOfImagesPos[i], IMREAD_GRAYSCALE));
+	}
+	
+	for (int i = 0; i < numberOfImagesNeg; i++)
+	{
+		allImgsNeg.push_back(imread("data/" + nameOfImagesNeg[i], IMREAD_GRAYSCALE));
+	}
+	
+	//create boundingboxed images for positive sample-------------------------------
+	vector<Mat> boundingImages;
+	for (int i = 0; i < numberOfImagesPos; i++)
+	{
+		int pos = nameOfImagesPos[i].find(".");
+		string sub = nameOfImagesPos[i].substr(0, pos);
+		int bbYMin, bbYMax, bbXMin, bbXMax;//create variables for bounding box
+		getBoundingBox("data/annotations/"+sub+".xml", bbYMin, bbYMax, bbXMin, bbXMax);//get the variables
+		Mat bimg(bbYMax - bbYMin, bbXMax - bbXMin, CV_8UC1);
+		createBoundingBoxImage(allImgsPos[i], bimg, bbYMin, bbYMax, bbXMin, bbXMax);
+		boundingImages.push_back(bimg);
+	}
 
-	//create boundingboxed images for positive sample
-	//resize them and the negative sample ones
-	//hog.compute them
-	//create labels?
+	//resize the bounding images and the negative sample ones--------------------------------------
+	vector<Mat> resizedBoundingImages(numberOfImagesPos);  //use these on hog
+	vector<Mat> resizedNegImages(numberOfImagesNeg);
+	Size smallSize(128, 128);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
+	for (int i = 0; i < numberOfImagesPos; i++)
+	{
+		resize(boundingImages[i], resizedBoundingImages[i], smallSize);
+	}
+	for (int i = 0; i < numberOfImagesPos; i++)
+	{
+		resize(allImgsNeg[i], resizedNegImages[i], smallSize);
+	}
+	//imshow("testResizeNeg", resizedNegImages[0]); //weird not shown correclty
+
+	//hog stuff them-------------------------------------------------------------
+	Size hogWinStride = Size(16, 16);
+	Size hogPadding = Size(0, 0);
+
+	vector<vector<float>> descriptorsP(numberOfImagesPos);
+	vector<vector<float>> descriptorsN(numberOfImagesNeg);
+	vector<vector<Point>> locations(numberOfImagesPos); //add for negative?
+	HOGDescriptor hog;
+
+	hog.winSize = Size(128, 128); //size of the window to get the hog? so bounding box or entire image?
+
+	for (int i = 0; i < numberOfImagesPos; i++)
+	{
+		hog.compute(resizedBoundingImages[i], descriptorsP[i], hogWinStride, hogPadding, locations[i]);
+	}
+
+	for (int i = 0; i < numberOfImagesNeg; i++)
+	{
+		hog.compute(resizedNegImages[i], descriptorsN[i], hogWinStride, hogPadding, locations[i]);
+	}
+	
+	//create labels
+	//hardcoded for now will change
+	int labels[10] = { 1,1,1,1,1,-1,-1,-1,-1,-1 };
+	Mat labelsMat(10, 1, CV_32SC1, labels);
+	cout << labelsMat << endl;
 	//pass them on the training method
+	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
+	//pos
+	for (int i = 0; i < numberOfImagesPos ; i++)
+	{
+		Mat test(descriptorsP[i], true);
+		transpose(test, test);
+		test.row(0).copyTo(descriptorsT.row(i));
+	}
+	//neg
+	for (int i = 0; i < numberOfImagesNeg; i++)
+	{
+		Mat test(descriptorsN[i], true);
+		transpose(test, test);
+		test.row(0).copyTo(descriptorsT.row(i+ numberOfImagesPos));
+	}
+	
+	Ptr<TrainData> tData = TrainData::create(descriptorsT, ROW_SAMPLE, labelsMat);//create it or pass directly to the training part ,train<SVM>(trainingDataMat, ROW_SAMPLE, labelsMat, params);
+	
+	Ptr<SVM> svm = SVM::create();
+	//set parameters of svn
+	svm->setType(SVM::C_SVC);
+	svm->setKernel(SVM::LINEAR);
+	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
+	//train the svm
+	
 
+	svm->train(tData);
+	
+	//get support vectors
+	
+	Mat sv = svm->getSupportVectors();
+
+	//save it
+	svm->save("svm.xml");
+
+
+
+	/*old stuff---------------------------
 	Mat img = imread("data/pug_166.jpg", IMREAD_GRAYSCALE);
 	Mat img2 = imread("data/Bengal_109.jpg", IMREAD_GRAYSCALE); //snd image
 	cout << "width and height " << img.rows << img.cols << endl;
@@ -94,22 +185,21 @@ int main()
 	imshow("bbImageResized2", rbimg2);
 
 	//------------------------------hog stuff-----------------------
-	Size hogWinStride = Size(8, 8);
+	Size hogWinStride = Size(16, 16);
 	Size hogPadding = Size(0, 0);
 
 	vector<vector<float>> descriptors(2);//make it vector<vector<float>>? for multiple images
-	vector<Point> locations;
-	vector<Point> locations2;
-
+	vector<vector<Point>> locations(2);
 	HOGDescriptor hog;
-	hog.winSize = Size(128, 128); //size of the window to get the hog? so bounding box or entire image?
+
+	hog.winSize = Size(64, 128); //size of the window to get the hog? so bounding box or entire image?
 
 								  //locations is empty during training, because you don't find the location of the object you want to detect, you only extract features.
-	hog.compute(rbimg, descriptors[0], hogWinStride, hogPadding, locations); ///leftttttttttt
-	hog.compute(rbimg2, descriptors[1], hogWinStride, hogPadding, locations2); ///leftttttttttt
+	hog.compute(rbimg, descriptors[0], hogWinStride, hogPadding, locations[0]); ///leftttttttttt
+	hog.compute(rbimg2, descriptors[1], hogWinStride, hogPadding, locations[1]); ///leftttttttttt
 																			   //the descriptors here should be sufficient for training. 
 																			   //useful link https://github.com/DaHoC/trainHOG and also check the train_HOG.cpp in the opencv examples.
-
+	cout << "size of descriptors " << descriptors[0].size();
 	cout << hog.winSize.width << endl;
 	cout << hog.winSize.height << endl;
 	cout << "descriptors list size: " << descriptors.size() << endl;
@@ -119,25 +209,25 @@ int main()
 	//for (int i=0;i<descriptors.size();i++)
 	//	cout << "descriptors: " << descriptors[i] ;
 
-	cout << "locations: " << locations << endl;
+	
 
 
 	//-------------------------------------------------------------
 	//training------------------------http://docs.opencv.org/3.0-beta/doc/tutorials/ml/introduction_to_svm/introduction_to_svm.html-----------------
 	//convert vector to Mat
 
-	Mat descriptorsT(2, descriptors[0].size(), CV_32FC1);
+	Mat descriptorsT(descriptors[0].size(), 2, CV_32FC1);
 
 	Mat test(descriptors[0], true);
-	transpose(test, test);
+	//transpose(test, test);
 	cout << test.rows << endl;
 	cout << test.cols << endl;
-	test.row(0).copyTo(descriptorsT.row(0));
+	test.col(0).copyTo(descriptorsT.col(0));
 
-	Mat test2(descriptors[0], true);
-	transpose(test2, test2);
-	test2.row(0).copyTo(descriptorsT.row(1));
-	cout << "meh" << endl;
+	Mat test2(descriptors[1], true);
+	//transpose(test2, test2);
+	test2.col(0).copyTo(descriptorsT.col(1));
+	
 	/*for (int i = 0; i < descriptors[0].size(); i++)
 	{
 	descriptorsT.at<float>(0, i) = descriptors[0][i];
@@ -146,24 +236,27 @@ int main()
 	{
 	descriptorsT.at<float>(1, i) = descriptors[1][i];
 	}
-	cout << "meh" << endl;*/
+	
 	//labels create
-	int labels[2] = { 1,-1 };
+	float labels[2] = { 1.0,-1.0 };
 	Mat labelsMat(2, 1, CV_32SC1, labels);
 	//train data creation
-	Ptr<TrainData> tData = TrainData::create(descriptorsT, ROW_SAMPLE, labelsMat);//create it or pass directly to the training part ,train<SVM>(trainingDataMat, ROW_SAMPLE, labelsMat, params);
+	Ptr<TrainData> tData = TrainData::create(descriptorsT,COL_SAMPLE, labelsMat);//create it or pass directly to the training part ,train<SVM>(trainingDataMat, ROW_SAMPLE, labelsMat, params);
 	Ptr<SVM> svm = SVM::create();
 	//set parameters of svn
 	svm->setType(SVM::C_SVC);
 	svm->setKernel(SVM::LINEAR);
+	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
 	//train the svm
 	svm->train(tData);
-	Mat sv = svm->getSupportVectors();
+
+
+ 	Mat sv = svm->getSupportVectors();
 
 	//save it
 
 	svm->save("svm.xml");
-
+	*/
 
 	waitKey(0);
 	return 0;
@@ -205,7 +298,7 @@ void getBoundingBox(string name, int& ymin, int& ymax, int& xmin, int& xmax)//se
 	fs2["ymax"] >> ymax;
 	fs2["xmin"] >> xmin;
 	fs2["xmax"] >> xmax;
-	cout << "xmin is " << xmin << ymin << xmax << ymax << endl;
+	cout << "xs an ys are " << xmin << ymin << xmax << ymax << endl;
 
 	fs2.release();
 }
