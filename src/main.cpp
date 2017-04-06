@@ -69,7 +69,7 @@ int main()
 	//resize the bounding images and the negative sample ones--------------------------------------
 	vector<Mat> resizedBoundingImages(numberOfImagesPos);  //use these on hog
 	vector<Mat> resizedNegImages(numberOfImagesNeg);
-	Size smallSize(64, 64);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
+	Size smallSize(32, 32);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
 
 	for (int i = 0; i < numberOfImagesPos; i++)
 	{
@@ -87,25 +87,26 @@ int main()
 
 	vector<vector<float>> descriptorsP(numberOfImagesPos);
 	vector<vector<float>> descriptorsN(numberOfImagesNeg);
-	vector<vector<Point>> locations(numberOfImagesPos); //add for negative?
+	vector<vector<Point>> locationsPos(numberOfImagesPos); 
+	vector<vector<Point>> locationsNeg(numberOfImagesNeg); 
 	HOGDescriptor hog;
 
-	hog.winSize = Size(64, 64); //size of the window to get the hog? so bounding box or entire image?
+	hog.winSize = Size(32, 32); //size of the window to get the hog? so bounding box or entire image?
 
 	for (int i = 0; i < numberOfImagesPos; i++)
 	{
-		hog.compute(resizedBoundingImages[i], descriptorsP[i], hogWinStride, hogPadding, locations[i]);
+		hog.compute(resizedBoundingImages[i], descriptorsP[i], hogWinStride, hogPadding, locationsPos[i]);
 	}
 
 	for (int i = 0; i < numberOfImagesNeg; i++)
 	{
-		hog.compute(resizedNegImages[i], descriptorsN[i], hogWinStride, hogPadding, locations[i]);
+		hog.compute(resizedNegImages[i], descriptorsN[i], hogWinStride, hogPadding, locationsNeg[i]);
 	}
 	
 	//create labels
 	//hardcoded for now will change
-	int labels[85];
-	for (int i = 0; i < 85; i++)
+	int labels[110];
+	for (int i = 0; i < 110; i++)
 	{
 		if (i < numberOfImagesPos)
 			labels[i] = 1;
@@ -122,7 +123,7 @@ int main()
 	//		labels.push_back(-1);
 	//}
 
-	Mat labelsMat(85, 1, CV_32SC1, labels);
+	Mat labelsMat(110, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
 	//pos
@@ -174,17 +175,40 @@ int main()
 	//detection
 	vector<Rect> foundLocations;
 	vector<double> foundWeights;
-	Mat testImagePos = imread("data/test_doublepug.jpg", IMREAD_GRAYSCALE);
-	Mat testImageNeg = imread("data/test_neg_1.jpg", IMREAD_GRAYSCALE);
+	Mat testImagePos = imread("data/positive/pug_101.jpg", IMREAD_GRAYSCALE);
+	Mat testImageNeg = imread("data/negative/neg16.jpg", IMREAD_GRAYSCALE);
 	
 	Mat testResult;
 	testImagePos.copyTo(testResult);
 
-	hog.detectMultiScale(testResult, foundLocations, foundWeights, 0, Size(8, 8), Size(0, 0), 1.05, 2.0, false);
+	// explanation of detectmultiscale parameters 
+	// http://www.pyimagesearch.com/2015/11/16/hog-detectmultiscale-parameters-explained/
+	// strangely enough, a smaller winstride doesn't give us more detections. 
+	hog.detectMultiScale(testResult, foundLocations, foundWeights, 0, Size(16, 16), Size(0, 0), 1.05, 2.0, false);
 
 	cout << foundLocations.size() << endl;
 
-	rectangle(testResult, foundLocations[0], Scalar(0, 0, 0, 1), 1, 8, 0);
+	double maxWeight = 0;
+	int idx = -1;
+	//get the index for the highest weight
+	for (int i = 0; i < foundWeights.size(); i++)
+	{
+		if (foundWeights[i] > maxWeight)
+		{
+			maxWeight = foundWeights[i];
+			idx = i;
+		}
+	}
+
+	//draw all rectangles
+	/*for (int i = 0; i < foundLocations.size(); i++)
+	{
+		rectangle(testResult, foundLocations[i], Scalar(1, 1, 1, 1), 1, 8, 0);
+	}*/
+
+	//draw the rectangle with the highest weight
+	rectangle(testResult, foundLocations[idx], Scalar(1, 1, 1, 1), 1, 8, 0);
+
 	imshow("testresult", testResult);
 	//save it
 	svm->save("svm.xml");
