@@ -12,6 +12,7 @@ Mat get_hogdescriptor_visu(const Mat& color_origImg, vector<float>& descriptorVa
 void getBoundingBox(string name, int& ymin, int& ymax, int& xmin, int& xmax);
 void createBoundingBoxImage(Mat img, Mat &bimg, int bbYMin, int bbYMax, int bbXMin, int bbXMax);
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num);
+vector<Rect> get_sliding_windows(Mat& image, int winWidth, int winHeight, Ptr<SVM> svm);
 
 int main()
 {
@@ -69,7 +70,7 @@ int main()
 	//resize the bounding images and the negative sample ones--------------------------------------
 	vector<Mat> resizedBoundingImages(numberOfImagesPos);  //use these on hog
 	vector<Mat> resizedNegImages(numberOfImagesNeg);
-	Size smallSize(32, 32);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
+	Size smallSize(128, 128);//set values to resize, whaaat values shoud we have? ....................same as winsize is a must?
 
 	for (int i = 0; i < numberOfImagesPos; i++)
 	{
@@ -82,7 +83,7 @@ int main()
 	//imshow("testResizeNeg", resizedNegImages[0]); //weird not shown correclty
 
 	//hog stuff them-------------------------------------------------------------
-	Size hogWinStride = Size(16, 16);
+	Size hogWinStride = Size(8, 8);
 	Size hogPadding = Size(0, 0);
 
 	vector<vector<float>> descriptorsP(numberOfImagesPos);
@@ -91,7 +92,7 @@ int main()
 	vector<vector<Point>> locationsNeg(numberOfImagesNeg); 
 	HOGDescriptor hog;
 
-	hog.winSize = Size(32, 32); //size of the window to get the hog? so bounding box or entire image?
+	hog.winSize = Size(128, 128); //size of the window to get the hog? so bounding box or entire image?
 
 	for (int i = 0; i < numberOfImagesPos; i++)
 	{
@@ -105,8 +106,8 @@ int main()
 	
 	//create labels
 	//hardcoded for now will change
-	int labels[110];
-	for (int i = 0; i < 110; i++)
+	int labels[85];
+	for (int i = 0; i < 85; i++)
 	{
 		if (i < numberOfImagesPos)
 			labels[i] = 1;
@@ -123,7 +124,7 @@ int main()
 	//		labels.push_back(-1);
 	//}
 
-	Mat labelsMat(110, 1, CV_32SC1, labels);
+	Mat labelsMat(85, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
 	//pos
@@ -144,77 +145,137 @@ int main()
 	Ptr<TrainData> tData = TrainData::create(descriptorsT, ROW_SAMPLE, labelsMat);//create it or pass directly to the training part ,train<SVM>(trainingDataMat, ROW_SAMPLE, labelsMat, params);
 	
 	Ptr<SVM> svm = SVM::create();
-	//set parameters of svn
-	svm->setType(SVM::C_SVC);
+	///set parameters of svn
+	//svm->setType(SVM::C_SVC);
+	//svm->setCoef0(0.0);
+	//svm->setDegree(3);
+	//svm->setGamma(0);
+	//svm->setNu(0.5);
+	//svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
+	svm->setC(0.1); // From paper, soft classifier
 	svm->setKernel(SVM::LINEAR);
-	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
+	//svm->setType(SVM::EPS_SVR);
+	svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-3));
 	//train the svm
+	svm->trainAuto(tData, 10);
+
+	//svm->train(tData);
 	
+	////get support vectors for the hogdescriptor
+	//Mat sv = svm->getSupportVectors();
+	//vector<float> hog_detector;
+	//const int sv_total = sv.rows;
+	//// get the decision function
+	//Mat alpha, svidx;
+	//double rho = svm->getDecisionFunction(0, alpha, svidx);
+	//CV_Assert(alpha.total() == 1 && svidx.total() == 1 && sv_total == 1);
+	//CV_Assert((alpha.type() == CV_64F && alpha.at<double>(0) == 1.) || (alpha.type() == CV_32F && alpha.at<float>(0) == 1.f));
+	//CV_Assert(sv.type() == CV_32F);
+	//hog_detector.clear();
+	//hog_detector.resize(sv.cols + 1);
+	//memcpy(&hog_detector[0], sv.ptr(), sv.cols * sizeof(hog_detector[0]));
+	//hog_detector[sv.cols] = (float)-rho;
+	//hog.setSVMDetector(hog_detector);
+	////detection
+	//vector<Rect> foundLocations;
+	//vector<double> foundWeights;
+	//Mat testImagePos = imread("data/positive/pug_101.jpg", IMREAD_GRAYSCALE);
+	//Mat testImageNeg = imread("data/negative/neg16.jpg", IMREAD_GRAYSCALE);
+	//
+	//Mat testResult;
+	//testImagePos.copyTo(testResult);
+	//// explanation of detectmultiscale parameters 
+	//// http://www.pyimagesearch.com/2015/11/16/hog-detectmultiscale-parameters-explained/
+	//// strangely enough, a smaller winstride doesn't give us more detections. 
+	//hog.detectMultiScale(testResult, foundLocations, foundWeights, 0, Size(16, 16), Size(0, 0), 1.05, 2.0, false);
+	//cout << foundLocations.size() << endl;
+	//double maxWeight = 0;
+	//int idx = -1;
+	////get the index for the highest weight
+	//for (int i = 0; i < foundWeights.size(); i++)
+	//{
+	//	if (foundWeights[i] > maxWeight)
+	//	{
+	//		maxWeight = foundWeights[i];
+	//		idx = i;
+	//	}
+	//}
+	////draw all rectangles
+	//*for (int i = 0; i < foundLocations.size(); i++)
+	//{
+	//	rectangle(testResult, foundLocations[i], Scalar(1, 1, 1, 1), 1, 8, 0);
+	//}*/
+	////draw the rectangle with the highest weight
+	//rectangle(testResult, foundLocations[idx], Scalar(1, 1, 1, 1), 1, 8, 0);
+	//imshow("testresult", testResult);
 
-	svm->train(tData);
-	
-	//get support vectors for the hogdescriptor
-	Mat sv = svm->getSupportVectors();
-	vector<float> hog_detector;
-	const int sv_total = sv.rows;
-	// get the decision function
-	Mat alpha, svidx;
-	double rho = svm->getDecisionFunction(0, alpha, svidx);
 
-	CV_Assert(alpha.total() == 1 && svidx.total() == 1 && sv_total == 1);
-	CV_Assert((alpha.type() == CV_64F && alpha.at<double>(0) == 1.) || (alpha.type() == CV_32F && alpha.at<float>(0) == 1.f));
-	CV_Assert(sv.type() == CV_32F);
-	hog_detector.clear();
+	//predict?------------------------------------------------
+	Mat testImageNeg2 = imread("data/pug_188.jpg", IMREAD_GRAYSCALE);
+	Mat testResult2;
+	testImageNeg2.copyTo(testResult2);
+	resize(testResult2, testResult2, Size(128, 128));
+	vector<float> descriptorsN2(1);
+	vector<Point> locations2(1);
+	hog.compute(testResult2, descriptorsN2, hogWinStride, hogPadding, locations2);
+	cout << "predict " << svm->predict(descriptorsN2) << endl;
+	//----------------------------------------------------------------
 
-	hog_detector.resize(sv.cols + 1);
-	memcpy(&hog_detector[0], sv.ptr(), sv.cols * sizeof(hog_detector[0]));
-	hog_detector[sv.cols] = (float)-rho;
 
-	hog.setSVMDetector(hog_detector);
 
-	//detection
-	vector<Rect> foundLocations;
-	vector<double> foundWeights;
-	Mat testImagePos = imread("data/positive/pug_101.jpg", IMREAD_GRAYSCALE);
-	Mat testImageNeg = imread("data/negative/neg16.jpg", IMREAD_GRAYSCALE);
-	
-	Mat testResult;
-	testImagePos.copyTo(testResult);
+	Mat forTestingRect = imread("data/test_doublepug.jpg", IMREAD_GRAYSCALE);
+	vector<Rect> getWindows = get_sliding_windows(forTestingRect, 128, 128, svm);
 
-	// explanation of detectmultiscale parameters 
-	// http://www.pyimagesearch.com/2015/11/16/hog-detectmultiscale-parameters-explained/
-	// strangely enough, a smaller winstride doesn't give us more detections. 
-	hog.detectMultiScale(testResult, foundLocations, foundWeights, 0, Size(16, 16), Size(0, 0), 1.05, 2.0, false);
-
-	cout << foundLocations.size() << endl;
-
-	double maxWeight = 0;
-	int idx = -1;
-	//get the index for the highest weight
-	for (int i = 0; i < foundWeights.size(); i++)
+	if (!getWindows.empty())
 	{
-		if (foundWeights[i] > maxWeight)
+		vector< Rect >::const_iterator loc = getWindows.begin();
+		vector< Rect >::const_iterator end = getWindows.end();
+		int count = 0;
+		for (; loc != end; ++loc)
 		{
-			maxWeight = foundWeights[i];
-			idx = i;
+			//cout << "weights " << getWindows[count] << endl;
+			//if(foundWeights[count]<1)
+			rectangle(forTestingRect, *loc, Scalar(255, 255, 255), 5, 8, 0);
+			//cout << "test" << endl;
+			count++;
 		}
 	}
-
-	//draw all rectangles
-	/*for (int i = 0; i < foundLocations.size(); i++)
-	{
-		rectangle(testResult, foundLocations[i], Scalar(1, 1, 1, 1), 1, 8, 0);
-	}*/
-
-	//draw the rectangle with the highest weight
-	rectangle(testResult, foundLocations[idx], Scalar(1, 1, 1, 1), 1, 8, 0);
-
-	imshow("testresult", testResult);
+	imshow("windowOne", forTestingRect);
 	//save it
 	svm->save("svm.xml");
 
 	waitKey(0);
 	return 0;
+}
+
+vector<Rect> get_sliding_windows(Mat& image, int winWidth, int winHeight, Ptr<SVM> svm)
+{
+	vector<Rect> rects;
+	int step = 32;
+	for (int i = 0; i<image.rows; i += step)
+	{
+		if ((i + winHeight)>image.rows) { break; }
+		for (int j = 0; j< image.cols; j += step)
+		{
+			if ((j + winWidth)>image.cols) { break; }
+			Rect rect(j, i, winWidth, winHeight);
+			//hog compute and svm
+			Mat subImg = image(rect);
+			HOGDescriptor hog;
+			hog.winSize = Size(128, 128);
+			vector<float> descriptorsN2(1);
+			vector<Point> locations2(1);
+			hog.compute(subImg, descriptorsN2, Size(8, 8), Size(0, 0), locations2);
+			//cout << "predict " << svm->predict(descriptorsN2) << endl;
+			Mat out;
+			svm->predict(descriptorsN2, out);
+			cout << "predict out" << out << endl;
+			if (svm->predict(descriptorsN2) == 1)
+				//if (out.at<double>(0,0) > 0.7)
+				rects.push_back(rect);
+		}
+	}
+	return rects;
 }
 
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num)//get name of images

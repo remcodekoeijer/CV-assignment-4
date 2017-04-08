@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <opencv_storage>
-<num>60</num>
+<num>35</num>
 <i1>neg1.jpg</i1>
 <i2>neg2.jpg</i2>
 <i3>neg3.jpg</i3>
@@ -36,29 +36,4 @@
 <i33>neg33.jpg</i33>
 <i34>neg34.jpg</i34>
 <i35>neg35.jpg</i35>
-<i36>neg36.jpg</i36>
-<i37>neg37.jpg</i37>
-<i38>neg38.jpg</i38>
-<i39>neg39.jpg</i39>
-<i40>neg40.jpg</i40>
-<i41>neg41.jpg</i41>
-<i42>neg42.jpg</i42>
-<i43>neg43.jpg</i43>
-<i44>neg44.jpg</i44>
-<i45>neg45.jpg</i45>
-<i46>neg46.jpg</i46>
-<i47>neg47.jpg</i47>
-<i48>neg48.jpg</i48>
-<i49>neg49.jpg</i49>
-<i50>neg50.jpg</i50>
-<i51>neg51.jpg</i51>
-<i52>neg52.jpg</i52>
-<i53>neg53.jpg</i53>
-<i54>neg54.jpg</i54>
-<i55>neg55.jpg</i55>
-<i56>neg56.jpg</i56>
-<i57>neg57.jpg</i57>
-<i58>neg58.jpg</i58>
-<i59>neg59.jpg</i59>
-<i60>neg60.jpg</i60>
 </opencv_storage>
