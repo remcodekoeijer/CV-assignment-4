@@ -4,6 +4,8 @@
 #include <opencv2/objdetect/objdetect.hpp>
 #include <iostream>
 #include <vector>
+#include <math.h>
+
 using namespace std;
 using namespace cv;
 using namespace cv::ml;
@@ -12,7 +14,8 @@ Mat get_hogdescriptor_visu(const Mat& color_origImg, vector<float>& descriptorVa
 void getBoundingBox(string name, int& ymin, int& ymax, int& xmin, int& xmax);
 void createBoundingBoxImage(Mat img, Mat &bimg, int bbYMin, int bbYMax, int bbXMin, int bbXMax);
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num);
-vector<Rect> get_sliding_windows(Mat& image, int winWidth, int winHeight, Ptr<SVM> svm);
+vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm);
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap);
 
 int main()
 {
@@ -223,24 +226,68 @@ int main()
 
 
 
-	Mat forTestingRect = imread("data/test_doublepug.jpg", IMREAD_GRAYSCALE);
-	vector<Rect> getWindows = get_sliding_windows(forTestingRect, 128, 128, svm);
+	Mat scaledOrig = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
+	Mat scaledOrig2 = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
+	Size slidingWindowSize = Size(128, 128);
 
-	if (!getWindows.empty())
+	vector<Mat> imagePyramid;
+	Mat scaled1, scaled2, scaled3;
+	float scaleSize = 1.5f;
+
+	resize(scaledOrig, scaled1, Size(scaledOrig.cols / scaleSize, scaledOrig.rows / scaleSize));
+	resize(scaled1, scaled2, Size(scaled1.cols / scaleSize, scaled1.rows / scaleSize));
+	resize(scaled2, scaled3, Size(scaled2.cols / scaleSize, scaled2.rows / scaleSize));
+
+	imagePyramid.push_back(scaledOrig);
+	imagePyramid.push_back(scaled1);
+	imagePyramid.push_back(scaled2);
+	imagePyramid.push_back(scaled3);
+
+	vector<vector<Rect>> scaledRects;
+	vector<Rect> scaledRectsResized;
+
+	vector<Rect> getWindowsOrig = get_sliding_windows(scaledOrig, slidingWindowSize, svm);
+	vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm);
+	vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm);
+	vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm);
+
+	scaledRects.push_back(getWindowsOrig);
+	scaledRects.push_back(getWindows1);
+	scaledRects.push_back(getWindows2);
+	scaledRects.push_back(getWindows3);
+
+	for (int i = 0; i < scaledRects.size(); i++)
 	{
-		vector< Rect >::const_iterator loc = getWindows.begin();
-		vector< Rect >::const_iterator end = getWindows.end();
-		int count = 0;
-		for (; loc != end; ++loc)
+		float scaledFactor = powf(scaleSize, i);
+
+		if (!scaledRects[i].empty())
 		{
-			//cout << "weights " << getWindows[count] << endl;
-			//if(foundWeights[count]<1)
-			rectangle(forTestingRect, *loc, Scalar(255, 255, 255), 5, 8, 0);
-			//cout << "test" << endl;
-			count++;
+			vector< Rect >::const_iterator loc = scaledRects[i].begin();
+			vector< Rect >::const_iterator end = scaledRects[i].end();
+			int count = 0;
+			for (; loc != end; ++loc)
+			{
+				//cout << "weights " << getWindows[count] << endl;
+				//if(foundWeights[count]<1)
+				rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 5, 8, 0); //image pyramid
+
+				Rect rectResized = Rect(loc->x * scaledFactor, loc->y * scaledFactor, loc->width * scaledFactor, loc->height * scaledFactor);
+				scaledRectsResized.push_back(rectResized);
+				rectangle(scaledOrig2, rectResized, Scalar(255, 255, 255), 5, 8, 0);
+				//cout << "test" << endl;
+				count++;
+			}
 		}
+		imshow("window" + i, imagePyramid[i]);
 	}
-	imshow("windowOne", forTestingRect);
+	imshow("windowAllRectangle", scaledOrig2);
+
+	vector<Rect> nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
+	for (int i = 0; i < nmsRect.size(); i++)
+	{
+		rectangle(scaledOrig2, nmsRect[i], Scalar(255, 255, 255), 5, 8, 0);
+	}
+
 	//save it
 	svm->save("svm.xml");
 
@@ -248,10 +295,31 @@ int main()
 	return 0;
 }
 
-vector<Rect> get_sliding_windows(Mat& image, int winWidth, int winHeight, Ptr<SVM> svm)
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap)
+{
+	//TODO
+	/*
+	Get the best rectangle / sort them (what is the best rectangle? largest size?)
+	Loop over other rectangles and see how much they overlap (intersection over union)
+	If exceeding overlap, throw them away
+	Add the rectangle to result and remove from list
+	Repeat on remaining rectangles
+	*/
+
+
+
+
+	vector<Rect> result;
+
+	return result;
+}
+
+vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm)
 {
 	vector<Rect> rects;
-	int step = 32;
+	int step = 16;
+	int winWidth = win.width;
+	int winHeight = win.height;
 	for (int i = 0; i<image.rows; i += step)
 	{
 		if ((i + winHeight)>image.rows) { break; }
@@ -271,7 +339,6 @@ vector<Rect> get_sliding_windows(Mat& image, int winWidth, int winHeight, Ptr<SV
 			svm->predict(descriptorsN2, out);
 			cout << "predict out" << out << endl;
 			if (svm->predict(descriptorsN2) == 1)
-				//if (out.at<double>(0,0) > 0.7)
 				rects.push_back(rect);
 		}
 	}
