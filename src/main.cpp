@@ -16,6 +16,7 @@ void createBoundingBoxImage(Mat img, Mat &bimg, int bbYMin, int bbYMax, int bbXM
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num);
 vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm);
 vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap);
+float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2);
 
 int main()
 {
@@ -228,6 +229,7 @@ int main()
 
 	Mat scaledOrig = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
 	Mat scaledOrig2 = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
+	Mat scaledOrig3 = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
 	Size slidingWindowSize = Size(128, 128);
 
 	vector<Mat> imagePyramid;
@@ -269,11 +271,11 @@ int main()
 			{
 				//cout << "weights " << getWindows[count] << endl;
 				//if(foundWeights[count]<1)
-				rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 5, 8, 0); //image pyramid
+				rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 2, 8, 0); //image pyramid
 
 				Rect rectResized = Rect(loc->x * scaledFactor, loc->y * scaledFactor, loc->width * scaledFactor, loc->height * scaledFactor);
 				scaledRectsResized.push_back(rectResized);
-				rectangle(scaledOrig2, rectResized, Scalar(255, 255, 255), 5, 8, 0);
+				rectangle(scaledOrig2, rectResized, Scalar(255, 255, 255), 2, 8, 0);
 				//cout << "test" << endl;
 				count++;
 			}
@@ -285,9 +287,9 @@ int main()
 	vector<Rect> nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
 	for (int i = 0; i < nmsRect.size(); i++)
 	{
-		rectangle(scaledOrig2, nmsRect[i], Scalar(255, 255, 255), 5, 8, 0);
+		rectangle(scaledOrig3, nmsRect[i], Scalar(255, 255, 255), 2, 8, 0);
 	}
-
+	imshow("nms", scaledOrig3);
 	//save it
 	svm->save("svm.xml");
 
@@ -306,12 +308,50 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap)
 	Repeat on remaining rectangles
 	*/
 
+	Rect r = boundingBoxes[0]; //find a better way to get the first/best bounding box.
+	vector<Rect> result; //vector with the resulting boundingboxes
+	boundingBoxes.erase(boundingBoxes.begin());
 
+	for (int i = 0; i < boundingBoxes.size();)
+	{
+		Rect r2 = boundingBoxes[i];
+		float intersectionArea = 0;
 
+		if (r.x < r2.x)
+		{
+			if (r.y < r2.y)
+				intersectionArea = area_overlapping_rects(r.width, r.height, r, r2);
+			else
+				intersectionArea = area_overlapping_rects(r.width, r2.height, r, r2);
+		}
+		else
+		{
+			if (r.y < r2.y)
+				intersectionArea = area_overlapping_rects(r2.width, r.height, r, r2);
+			else
+				intersectionArea = area_overlapping_rects(r2.width, r2.height, r, r2);
+		}
 
-	vector<Rect> result;
+		float rectUnion = r.area() + r2.area() - intersectionArea;
+
+		float iou = (intersectionArea / rectUnion);
+
+		if (iou > overlap)
+			boundingBoxes.erase(boundingBoxes.begin() + i);
+		else
+			i++;
+	}
+
+	if(boundingBoxes.size() > 0)
+		result = non_maximum_suppression(boundingBoxes, overlap);
+	result.push_back(r);
 
 	return result;
+}
+
+float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2)
+{
+	return (xLength - std::abs(r1.x - r2.x)) * (yLength - std::abs(r1.y - r2.y));
 }
 
 vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm)
