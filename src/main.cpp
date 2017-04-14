@@ -84,10 +84,10 @@ int main()
 	{
 		resize(allImgsNeg[i], resizedNegImages[i], smallSize);
 	}
-	//imshow("testResizeNeg", resizedNegImages[0]); //weird not shown correclty
+	//imshow("testResizeNeg", resizedBoundingImages[49]); //weird not shown correclty
 
 	//hog stuff them-------------------------------------------------------------
-	Size hogWinStride = Size(8, 8);
+	Size hogWinStride = Size(16, 16);
 	Size hogPadding = Size(0, 0);
 
 	vector<vector<float>> descriptorsP(numberOfImagesPos);
@@ -110,8 +110,8 @@ int main()
 	
 	//create labels
 	//hardcoded for now will change
-	int labels[85];
-	for (int i = 0; i < 85; i++)
+	int labels[130];
+	for (int i = 0; i < 130; i++)
 	{
 		if (i < numberOfImagesPos)
 			labels[i] = 1;
@@ -128,7 +128,7 @@ int main()
 	//		labels.push_back(-1);
 	//}
 
-	Mat labelsMat(85, 1, CV_32SC1, labels);
+	Mat labelsMat(130, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
 	//pos
@@ -150,20 +150,20 @@ int main()
 	
 	Ptr<SVM> svm = SVM::create();
 	///set parameters of svn
-	//svm->setType(SVM::C_SVC);
-	//svm->setCoef0(0.0);
-	//svm->setDegree(3);
-	//svm->setGamma(0);
-	//svm->setNu(0.5);
-	//svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
-	svm->setC(0.1); // From paper, soft classifier
+	svm->setType(SVM::C_SVC);
+	svm->setCoef0(0.0);
+	svm->setDegree(3);
+	svm->setGamma(0);
+	svm->setNu(0.5);
+	svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
+	svm->setC(100.01); // From paper, soft classifier
 	svm->setKernel(SVM::LINEAR);
 	//svm->setType(SVM::EPS_SVR);
 	svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-3));
 	//train the svm
-	svm->trainAuto(tData, 10);
+    //svm->trainAuto(tData, 10);
 
-	//svm->train(tData);
+	svm->train(tData);
 	
 	////get support vectors for the hogdescriptor
 	//Mat sv = svm->getSupportVectors();
@@ -226,10 +226,10 @@ int main()
 	//----------------------------------------------------------------
 
 
-
-	Mat scaledOrig = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
-	Mat scaledOrig2 = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
-	Mat scaledOrig3 = imread("data/pug_10.jpg", IMREAD_GRAYSCALE);
+	string name = "data/testh.jpg";
+	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
+	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
+	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
 	Size slidingWindowSize = Size(128, 128);
 
 	vector<Mat> imagePyramid;
@@ -280,11 +280,13 @@ int main()
 				count++;
 			}
 		}
-		imshow("window" + i, imagePyramid[i]);
+		//imshow("window" + i, imagePyramid[i]);
 	}
 	imshow("windowAllRectangle", scaledOrig2);
+	vector<Rect> nmsRect;
+	if (!scaledRectsResized.empty())
+		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
 
-	vector<Rect> nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
 	for (int i = 0; i < nmsRect.size(); i++)
 	{
 		rectangle(scaledOrig3, nmsRect[i], Scalar(255, 255, 255), 2, 8, 0);
@@ -373,13 +375,17 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm)
 			hog.winSize = Size(128, 128);
 			vector<float> descriptorsN2(1);
 			vector<Point> locations2(1);
-			hog.compute(subImg, descriptorsN2, Size(8, 8), Size(0, 0), locations2);
+			hog.compute(subImg, descriptorsN2, Size(16, 16), Size(0, 0), locations2);
 			//cout << "predict " << svm->predict(descriptorsN2) << endl;
 			Mat out;
-			svm->predict(descriptorsN2, out);
-			cout << "predict out" << out << endl;
-			if (svm->predict(descriptorsN2) == 1)
+			svm->predict(descriptorsN2, out,true);
+			
+			//if (svm->predict(descriptorsN2) == 1)
+			if (out.at<float>(0) < -0.5)
+			{
+				cout << "predict out" << out << endl;
 				rects.push_back(rect);
+			}
 		}
 	}
 	return rects;
