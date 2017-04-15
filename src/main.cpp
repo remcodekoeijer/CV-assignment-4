@@ -110,8 +110,8 @@ int main()
 	
 	//create labels
 	//hardcoded for now will change
-	int labels[130];
-	for (int i = 0; i < 130; i++)
+	int labels[145];
+	for (int i = 0; i < 145; i++)
 	{
 		if (i < numberOfImagesPos)
 			labels[i] = 1;
@@ -128,7 +128,7 @@ int main()
 	//		labels.push_back(-1);
 	//}
 
-	Mat labelsMat(130, 1, CV_32SC1, labels);
+	Mat labelsMat(145, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
 	//pos
@@ -157,7 +157,7 @@ int main()
 	//svm->setNu(0.5);
 	//svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
 	//svm->setC(100.01); // From paper, soft classifier
-	svm->setKernel(SVM::LINEAR);
+	//svm->setKernel(SVM::LINEAR);
 	//svm->setType(SVM::EPS_SVR);
 	svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-3));
 	//train the svm
@@ -213,8 +213,10 @@ int main()
 	//rectangle(testResult, foundLocations[idx], Scalar(1, 1, 1, 1), 1, 8, 0);
 	//imshow("testresult", testResult);
 
+	//save it
+	svm->save("svm.xml");
 
-	//predict?------------------------------------------------
+	//predict-----------------------------------------------
 	Mat testImageNeg2 = imread("data/pug_188.jpg", IMREAD_GRAYSCALE);
 	Mat testResult2;
 	testImageNeg2.copyTo(testResult2);
@@ -226,7 +228,7 @@ int main()
 	//----------------------------------------------------------------
 
 
-	string name = "data/test2.jpg";
+	string name = "data/test6.jpg";
 	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
@@ -300,8 +302,7 @@ int main()
 		rectangle(scaledOrig3, nmsRect[i], Scalar(255, 255, 255), 2, 8, 0);
 	}
 	imshow("nms", scaledOrig3);
-	//save it
-	svm->save("svm.xml");
+	
 
 	waitKey(0);
 	return 0;
@@ -449,7 +450,7 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>
 			svm->predict(descriptorsN2, out,true);
 			
 			//if (svm->predict(descriptorsN2) == 1)
-			if (out.at<float>(0) < -0.5)
+			if (out.at<float>(0) < -0.4)
 			{
 				cout << "predict out" << out << endl;
 				outResults.push_back(out);
