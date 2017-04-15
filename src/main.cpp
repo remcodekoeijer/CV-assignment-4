@@ -14,8 +14,8 @@ Mat get_hogdescriptor_visu(const Mat& color_origImg, vector<float>& descriptorVa
 void getBoundingBox(string name, int& ymin, int& ymax, int& xmin, int& xmax);
 void createBoundingBoxImage(Mat img, Mat &bimg, int bbYMin, int bbYMax, int bbXMin, int bbXMax);
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num);
-vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm);
-vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap);
+vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>& outResults);
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, vector<Mat> outResults);
 float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2);
 
 int main()
@@ -151,17 +151,17 @@ int main()
 	Ptr<SVM> svm = SVM::create();
 	///set parameters of svn
 	svm->setType(SVM::C_SVC);
-	svm->setCoef0(0.0);
-	svm->setDegree(3);
-	svm->setGamma(0);
-	svm->setNu(0.5);
-	svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
-	svm->setC(100.01); // From paper, soft classifier
+	//svm->setCoef0(0.0);
+	//svm->setDegree(3);
+	//svm->setGamma(0);
+	//svm->setNu(0.5);
+	//svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
+	//svm->setC(100.01); // From paper, soft classifier
 	svm->setKernel(SVM::LINEAR);
 	//svm->setType(SVM::EPS_SVR);
 	svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-3));
 	//train the svm
-    //svm->trainAuto(tData, 10);
+    svm->trainAuto(tData, 10);
 
 	svm->train(tData);
 	
@@ -226,7 +226,7 @@ int main()
 	//----------------------------------------------------------------
 
 
-	string name = "data/testh.jpg";
+	string name = "data/test2.jpg";
 	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
@@ -248,10 +248,12 @@ int main()
 	vector<vector<Rect>> scaledRects;
 	vector<Rect> scaledRectsResized;
 
-	vector<Rect> getWindowsOrig = get_sliding_windows(scaledOrig, slidingWindowSize, svm);
-	vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm);
-	vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm);
-	vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm);
+	vector<Mat> outResults;
+	vector<Rect> getWindowsOrig = get_sliding_windows(scaledOrig, slidingWindowSize, svm, outResults);
+	vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm, outResults);
+	vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm, outResults);
+	vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm, outResults);
+
 
 	scaledRects.push_back(getWindowsOrig);
 	scaledRects.push_back(getWindows1);
@@ -282,10 +284,14 @@ int main()
 		}
 		//imshow("window" + i, imagePyramid[i]);
 	}
+	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
 	imshow("windowAllRectangle", scaledOrig2);
+	
+	
+
 	vector<Rect> nmsRect;
 	if (!scaledRectsResized.empty())
-		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
+		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.1f, outResults);
 
 	for (int i = 0; i < nmsRect.size(); i++)
 	{
@@ -299,7 +305,7 @@ int main()
 	return 0;
 }
 
-vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap)
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, vector<Mat> outResults)
 {
 	//TODO
 	/*
@@ -309,13 +315,15 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap)
 	Add the rectangle to result and remove from list
 	Repeat on remaining rectangles
 	*/
-
+	
 	Rect r = boundingBoxes[0]; //find a better way to get the first/best bounding box.
+	
 	vector<Rect> result; //vector with the resulting boundingboxes
-	boundingBoxes.erase(boundingBoxes.begin());
-
+	//boundingBoxes.erase(boundingBoxes.begin());
+	outResults.erase(outResults.begin());
 	for (int i = 0; i < boundingBoxes.size();)
 	{
+		
 		Rect r2 = boundingBoxes[i];
 		float intersectionArea = 0;
 
@@ -337,17 +345,22 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap)
 		float rectUnion = r.area() + r2.area() - intersectionArea;
 
 		float iou = (intersectionArea / rectUnion);
-
+		
 		if (iou > overlap)
+		{
 			boundingBoxes.erase(boundingBoxes.begin() + i);
+
+		
+		}
 		else
 			i++;
+		
 	}
-
-	if(boundingBoxes.size() > 0)
-		result = non_maximum_suppression(boundingBoxes, overlap);
+	
+	if(boundingBoxes.size() >0)
+		result = non_maximum_suppression(boundingBoxes, overlap, outResults);
 	result.push_back(r);
-
+	
 	return result;
 }
 
@@ -356,7 +369,7 @@ float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2)
 	return (xLength - std::abs(r1.x - r2.x)) * (yLength - std::abs(r1.y - r2.y));
 }
 
-vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm)
+vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>& outResults)
 {
 	vector<Rect> rects;
 	int step = 16;
@@ -384,6 +397,7 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm)
 			if (out.at<float>(0) < -0.5)
 			{
 				cout << "predict out" << out << endl;
+				outResults.push_back(out);
 				rects.push_back(rect);
 			}
 		}
