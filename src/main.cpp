@@ -163,7 +163,7 @@ int main()
 	//train the svm
     svm->trainAuto(tData, 10);
 
-	svm->train(tData);
+	//svm->train(tData);
 	
 	////get support vectors for the hogdescriptor
 	//Mat sv = svm->getSupportVectors();
@@ -284,14 +284,16 @@ int main()
 		}
 		//imshow("window" + i, imagePyramid[i]);
 	}
-	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
+//	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
 	imshow("windowAllRectangle", scaledOrig2);
 	
 	
 
 	vector<Rect> nmsRect;
 	if (!scaledRectsResized.empty())
-		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.1f, outResults);
+		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.01f, outResults);
+
+	cout << "nmsRect size " << nmsRect.size() << endl;
 
 	for (int i = 0; i < nmsRect.size(); i++)
 	{
@@ -319,8 +321,20 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	Rect r = boundingBoxes[0]; //find a better way to get the first/best bounding box.
 	
 	vector<Rect> result; //vector with the resulting boundingboxes
-	//boundingBoxes.erase(boundingBoxes.begin());
+
+	vector<Rect> firstResult;
+	vector<float> firstOut;
+
+
+	firstResult.push_back(boundingBoxes[0]);
+	firstOut.push_back(outResults[0].at<float>(0));
+
+	cout << "first result " << firstResult[0] << endl;
+
+	boundingBoxes.erase(boundingBoxes.begin());
 	outResults.erase(outResults.begin());
+
+	
 	for (int i = 0; i < boundingBoxes.size();)
 	{
 		
@@ -348,19 +362,60 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 		
 		if (iou > overlap)
 		{
-			boundingBoxes.erase(boundingBoxes.begin() + i);
+			//boundingBoxes.erase(boundingBoxes.begin() + i);
 
+			//add to new vector mat
+			firstResult.push_back(boundingBoxes[i]);
+			firstOut.push_back(outResults[i].at<float>(0));
+			i++;
 		
 		}
 		else
+		{
 			i++;
+		}
 		
 	}
+	cout << "frst out size " << firstOut.size() << endl;
+	//---------get maximum
+	float min = firstOut[0];//check if maximum
+	Rect bestRect= firstResult[0];
 	
-	if(boundingBoxes.size() >0)
+	for (int j = 0; j < firstOut.size(); j++)
+	{
+		if (firstOut[j] < min)
+		{
+			min = firstOut[j];
+			bestRect = firstResult[j]; //get it and add it
+			cout << "min " << min << endl;
+		}
+
+	}
+	
+	//----------------------
+	cout << "size 1 " << boundingBoxes.size() << endl;
+	//---------revome from bounding boxes
+	for (int j = 0; j < outResults.size(); j++)
+	{
+		for (int jj = 0; jj < firstOut.size(); jj++)
+		{
+			if (outResults[j].at<float>(0) == firstOut[jj])
+			{
+				boundingBoxes.erase(boundingBoxes.begin() + j);
+				outResults.erase(outResults.begin() + j);
+			}
+		}
+	}
+	cout << "size 2 " << boundingBoxes.size() << endl;
+	//----------------------------------
+	
+	if (boundingBoxes.size() > 1)
+	{
+		cout << "test" << endl;
 		result = non_maximum_suppression(boundingBoxes, overlap, outResults);
-	result.push_back(r);
-	
+		
+	}
+	result.push_back(bestRect);
 	return result;
 }
 
