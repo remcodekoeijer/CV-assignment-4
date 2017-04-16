@@ -228,7 +228,7 @@ int main()
 	//----------------------------------------------------------------
 
 
-	string name = "data/test6.jpg";
+	string name = "data/test_doublepug.jpg";
 	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
@@ -293,7 +293,7 @@ int main()
 
 	vector<Rect> nmsRect;
 	if (!scaledRectsResized.empty())
-		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.01f, outResults);
+		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f, outResults);
 
 	cout << "nmsRect size " << nmsRect.size() << endl;
 
@@ -342,7 +342,55 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 		Rect r2 = boundingBoxes[i];
 		float intersectionArea = 0;
 
-		if (r.x < r2.x)
+		//case with 1 rect encapsulated by the other
+		if (r.x < r2.x && r.y < r2.y &&
+			r2.x + r2.width < r.x + r.width &&
+			r2.y + r2.height < r.y + r.height)
+		{
+			//r2 is completely inside r
+			intersectionArea = r2.area();
+		}
+		else if (r.x > r2.x && r.y > r2.y &&
+			r2.x + r2.width > r.x + r.width &&
+			r2.y + r2.height > r.y + r.height)
+		{
+			//r is completely inside r2
+			intersectionArea = r.area();
+		}
+		
+		/*
+		//case where 2 corners are inside the other rect
+		else if (r.x < r2.x && r.y < r2.y)
+		{
+			if (r2.x + r2.width < r.x + r.width)
+			{
+				//r2 has 2 corners inside r and sticks out in y direction
+				intersectionArea = r2.width * (r.height - std::abs(r.y - r2.y));
+			}
+			else if (r2.y + r2.height < r.y + r.height)
+			{
+				//r2 has 2 corners inside r and sticks out in x direction
+				intersectionArea = (r.width - std::abs(r.x - r2.x)) * r2.height;
+			}
+		}
+
+		else if (r.x > r2.x && r.y > r2.y)
+		{
+			if (r2.x + r2.width > r.x + r.width)
+			{
+				//r has 2 corners inside r2 and sticks out in y direction
+				intersectionArea = r.width * (r2.height - std::abs(r2.y - r.y));
+			}
+			else if (r2.y + r2.height > r.y + r.height)
+			{
+				//r has 2 corners inside r2 and sticks out in x direction
+				intersectionArea = (r2.width - std::abs(r2.x - r.x)) * r.height;
+			}
+		}		
+		*/
+
+		//case with 1 corner inside the other rect
+		else if (r.x < r2.x)
 		{
 			if (r.y < r2.y)
 				intersectionArea = area_overlapping_rects(r.width, r.height, r, r2);
