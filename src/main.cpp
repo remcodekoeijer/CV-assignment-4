@@ -164,17 +164,21 @@ int main()
 	Size slidingWindowSize = Size(128, 128);
 
 	vector<Mat> imagePyramid;
-	Mat scaled1, scaled2, scaled3;
-	float scaleSize = 1.5f;
+	Mat scaled1, scaled2, scaled3, scaled4, scaled5;
+	float scaleSize = 1.3f;
 
 	resize(scaledOrig, scaled1, Size(scaledOrig.cols / scaleSize, scaledOrig.rows / scaleSize));
 	resize(scaled1, scaled2, Size(scaled1.cols / scaleSize, scaled1.rows / scaleSize));
 	resize(scaled2, scaled3, Size(scaled2.cols / scaleSize, scaled2.rows / scaleSize));
+	resize(scaled3, scaled4, Size(scaled3.cols / scaleSize, scaled3.rows / scaleSize));
+	resize(scaled4, scaled5, Size(scaled4.cols / scaleSize, scaled4.rows / scaleSize));
 
 	imagePyramid.push_back(scaledOrig);
 	imagePyramid.push_back(scaled1);
 	imagePyramid.push_back(scaled2);
 	imagePyramid.push_back(scaled3);
+	imagePyramid.push_back(scaled4);
+	imagePyramid.push_back(scaled5);
 
 	vector<vector<Rect>> scaledRects;
 	vector<Rect> scaledRectsResized;
@@ -184,12 +188,16 @@ int main()
 	vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm, outResults);
 	vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm, outResults);
 	vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm, outResults);
+	vector<Rect> getWindows4 = get_sliding_windows(scaled4, slidingWindowSize, svm, outResults);
+	vector<Rect> getWindows5 = get_sliding_windows(scaled5, slidingWindowSize, svm, outResults);
 
 
 	scaledRects.push_back(getWindowsOrig);
 	scaledRects.push_back(getWindows1);
 	scaledRects.push_back(getWindows2);
 	scaledRects.push_back(getWindows3);
+	scaledRects.push_back(getWindows4);
+	scaledRects.push_back(getWindows5);
 
 	for (int i = 0; i < scaledRects.size(); i++)
 	{
