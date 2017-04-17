@@ -156,91 +156,98 @@ int main()
 	cout << "predict " << svm->predict(descriptorsN2) << endl;
 	//----------------------------------------------------------------
 
-
-	string name = "data/test22.jpg";
-	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
-	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
-	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
-	Size slidingWindowSize = Size(128, 128);
-
-	vector<Mat> imagePyramid;
-	Mat scaled1, scaled2, scaled3, scaled4, scaled5;
-	float scaleSize = 1.3f;
-
-	resize(scaledOrig, scaled1, Size(scaledOrig.cols / scaleSize, scaledOrig.rows / scaleSize));
-	resize(scaled1, scaled2, Size(scaled1.cols / scaleSize, scaled1.rows / scaleSize));
-	resize(scaled2, scaled3, Size(scaled2.cols / scaleSize, scaled2.rows / scaleSize));
-	resize(scaled3, scaled4, Size(scaled3.cols / scaleSize, scaled3.rows / scaleSize));
-	resize(scaled4, scaled5, Size(scaled4.cols / scaleSize, scaled4.rows / scaleSize));
-
-	imagePyramid.push_back(scaledOrig);
-	imagePyramid.push_back(scaled1);
-	imagePyramid.push_back(scaled2);
-	imagePyramid.push_back(scaled3);
-	imagePyramid.push_back(scaled4);
-	imagePyramid.push_back(scaled5);
-
-	vector<vector<Rect>> scaledRects;
-	vector<Rect> scaledRectsResized;
-
-	vector<Mat> outResults;
-	vector<Rect> getWindowsOrig = get_sliding_windows(scaledOrig, slidingWindowSize, svm, outResults);
-	vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm, outResults);
-	vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm, outResults);
-	vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm, outResults);
-	vector<Rect> getWindows4 = get_sliding_windows(scaled4, slidingWindowSize, svm, outResults);
-	vector<Rect> getWindows5 = get_sliding_windows(scaled5, slidingWindowSize, svm, outResults);
-
-
-	scaledRects.push_back(getWindowsOrig);
-	scaledRects.push_back(getWindows1);
-	scaledRects.push_back(getWindows2);
-	scaledRects.push_back(getWindows3);
-	scaledRects.push_back(getWindows4);
-	scaledRects.push_back(getWindows5);
-
-	for (int i = 0; i < scaledRects.size(); i++)
+	for (int num = 1; num < 101; num++)
 	{
-		float scaledFactor = powf(scaleSize, i);
+		//string name = "data/test22.jpg";
 
-		if (!scaledRects[i].empty())
+		string name = "data/test" + to_string(num) + ".jpg";
+
+		Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
+		Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
+		Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
+		Size slidingWindowSize = Size(128, 128);
+
+		vector<Mat> imagePyramid;
+		Mat scaled1, scaled2, scaled3, scaled4, scaled5;
+		float scaleSize = 1.3f;
+
+		resize(scaledOrig, scaled1, Size(scaledOrig.cols / scaleSize, scaledOrig.rows / scaleSize));
+		resize(scaled1, scaled2, Size(scaled1.cols / scaleSize, scaled1.rows / scaleSize));
+		resize(scaled2, scaled3, Size(scaled2.cols / scaleSize, scaled2.rows / scaleSize));
+		resize(scaled3, scaled4, Size(scaled3.cols / scaleSize, scaled3.rows / scaleSize));
+		resize(scaled4, scaled5, Size(scaled4.cols / scaleSize, scaled4.rows / scaleSize));
+
+		imagePyramid.push_back(scaledOrig);
+		imagePyramid.push_back(scaled1);
+		imagePyramid.push_back(scaled2);
+		imagePyramid.push_back(scaled3);
+		imagePyramid.push_back(scaled4);
+		imagePyramid.push_back(scaled5);
+
+		vector<vector<Rect>> scaledRects;
+		vector<Rect> scaledRectsResized;
+
+		vector<Mat> outResults;
+		vector<Rect> getWindowsOrig = get_sliding_windows(scaledOrig, slidingWindowSize, svm, outResults);
+		vector<Rect> getWindows1 = get_sliding_windows(scaled1, slidingWindowSize, svm, outResults);
+		vector<Rect> getWindows2 = get_sliding_windows(scaled2, slidingWindowSize, svm, outResults);
+		vector<Rect> getWindows3 = get_sliding_windows(scaled3, slidingWindowSize, svm, outResults);
+		vector<Rect> getWindows4 = get_sliding_windows(scaled4, slidingWindowSize, svm, outResults);
+		vector<Rect> getWindows5 = get_sliding_windows(scaled5, slidingWindowSize, svm, outResults);
+
+
+		scaledRects.push_back(getWindowsOrig);
+		scaledRects.push_back(getWindows1);
+		scaledRects.push_back(getWindows2);
+		scaledRects.push_back(getWindows3);
+		scaledRects.push_back(getWindows4);
+		scaledRects.push_back(getWindows5);
+
+		for (int i = 0; i < scaledRects.size(); i++)
 		{
-			vector< Rect >::const_iterator loc = scaledRects[i].begin();
-			vector< Rect >::const_iterator end = scaledRects[i].end();
-			int count = 0;
-			for (; loc != end; ++loc)
+			float scaledFactor = powf(scaleSize, i);
+
+			if (!scaledRects[i].empty())
 			{
-				//cout << "weights " << getWindows[count] << endl;
-				//if(foundWeights[count]<1)
-				rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 2, 8, 0); //image pyramid
+				vector< Rect >::const_iterator loc = scaledRects[i].begin();
+				vector< Rect >::const_iterator end = scaledRects[i].end();
+				int count = 0;
+				for (; loc != end; ++loc)
+				{
+					//cout << "weights " << getWindows[count] << endl;
+					//if(foundWeights[count]<1)
+					rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 2, 8, 0); //image pyramid
 
-				Rect rectResized = Rect(loc->x * scaledFactor, loc->y * scaledFactor, loc->width * scaledFactor, loc->height * scaledFactor);
-				scaledRectsResized.push_back(rectResized);
-				rectangle(scaledOrig2, rectResized, Scalar(255, 255, 255), 2, 8, 0);
-				//cout << "test" << endl;
-				count++;
+					Rect rectResized = Rect(loc->x * scaledFactor, loc->y * scaledFactor, loc->width * scaledFactor, loc->height * scaledFactor);
+					scaledRectsResized.push_back(rectResized);
+					rectangle(scaledOrig2, rectResized, Scalar(255, 255, 255), 2, 8, 0);
+					//cout << "test" << endl;
+					count++;
+				}
 			}
+			//imshow("window" + i, imagePyramid[i]);
 		}
-		//imshow("window" + i, imagePyramid[i]);
+		//	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
+		//imshow("windowAllRectangle", scaledOrig2);
+		imwrite("data/outputAll/windowAllRectangle" + to_string(num) + ".jpg", scaledOrig2);
+
+
+
+		vector<Rect> nmsRect;
+		if (!scaledRectsResized.empty())
+			nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f, outResults);
+
+		cout << "nmsRect size " << nmsRect.size() << endl;
+
+		for (int i = 0; i < nmsRect.size(); i++)
+		{
+			rectangle(scaledOrig3, nmsRect[i], Scalar(255, 255, 255), 2, 8, 0);
+		}
+
+		//imshow("nms", scaledOrig3);
+		imwrite("data/outputAll/nms" + to_string(num) + ".jpg", scaledOrig3);
+
 	}
-//	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
-	imshow("windowAllRectangle", scaledOrig2);
-	
-	
-
-	vector<Rect> nmsRect;
-	if (!scaledRectsResized.empty())
-		 nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f, outResults);
-
-	cout << "nmsRect size " << nmsRect.size() << endl;
-
-	for (int i = 0; i < nmsRect.size(); i++)
-	{
-		rectangle(scaledOrig3, nmsRect[i], Scalar(255, 255, 255), 2, 8, 0);
-	}
-	imshow("nms", scaledOrig3);
-	
-
 	waitKey(0);
 	return 0;
 }
