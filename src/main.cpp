@@ -261,6 +261,8 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	If exceeding overlap, throw them away
 	Add the rectangle to result and remove from list
 	Repeat on remaining rectangles
+
+	check: http://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/ 
 	*/
 
 	int bestIdx = 0;
