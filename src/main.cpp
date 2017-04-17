@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <algorithm>
 
 using namespace std;
 using namespace cv;
@@ -15,8 +16,9 @@ void getBoundingBox(string name, int& ymin, int& ymax, int& xmin, int& xmax);
 void createBoundingBoxImage(Mat img, Mat &bimg, int bbYMin, int bbYMax, int bbXMin, int bbXMax);
 void getNameOfImages(vector<string>& nameOfImages, string xmlname, int& num);
 vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>& outResults);
-vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, vector<Mat> outResults);
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap_thres);
 float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2);
+bool sort_rect_maxycoord(Rect r, Rect r2) { return (r.y + r.height) < (r2.y + r2.height); }
 
 int main()
 {
@@ -235,7 +237,7 @@ int main()
 
 		vector<Rect> nmsRect;
 		if (!scaledRectsResized.empty())
-			nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f, outResults);
+			nmsRect = non_maximum_suppression(scaledRectsResized, 0.5f);
 
 		cout << "nmsRect size " << nmsRect.size() << endl;
 
@@ -252,7 +254,7 @@ int main()
 	return 0;
 }
 
-vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, vector<Mat> outResults)
+vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap_thres)
 {
 	//TODO
 	/*
@@ -265,6 +267,58 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	check: http://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/ 
 	*/
 
+	vector<Rect> result;
+
+	//get size and check if it's non-empty. 
+	const size_t size = boundingBoxes.size();
+	if (!size)
+		return result;
+
+	//sort boundingboxes on the lowerright y coord
+	std::multimap<int, size_t> idxs;
+	for (size_t i = 0; i < size; ++i)
+	{
+		idxs.insert(std::pair<int, size_t>(boundingBoxes[i].br().y, i));
+	}
+
+	//keep looping while some indexes still remain
+	while (idxs.size() > 0)
+	{
+		// grab the last rectangle, add to result and remove from list
+		auto lastElem = --std::end(idxs);
+		const Rect& r1 = boundingBoxes[lastElem->second];
+
+		result.push_back(r1);
+
+		idxs.erase(lastElem);
+
+		//loop over all the other bounding boxes
+		for (auto pos = std::begin(idxs); pos != std::end(idxs); )
+		{
+			// grab the current rectangle
+			const Rect& r2 = boundingBoxes[pos->second];
+
+			float intersectionArea = (r1 & r2).area(); //get the area from the overlap rect on r1 and r2
+			float unionArea = r1.area() + r2.area() - intersectionArea;
+			float iou = intersectionArea / unionArea;
+
+			// if there is sufficient overlap, suppress the current bounding box
+			if (iou > overlap_thres)
+			{
+				pos = idxs.erase(pos);
+			}
+			else
+			{
+				++pos;
+			}
+		}
+	}
+
+	return result;
+
+
+
+/* OLD
 	int bestIdx = 0;
 	int largestArea = boundingBoxes[0].area();
 
@@ -319,8 +373,9 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 			intersectionArea = r.area();
 		}
 		
-		/*
+		
 		//case where 2 corners are inside the other rect
+		//NOT WORKING CORRECTLY
 		else if (r.x < r2.x && r.y < r2.y)
 		{
 			if (r2.x + r2.width < r.x + r.width)
@@ -348,7 +403,7 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 				intersectionArea = (r2.width - std::abs(r2.x - r.x)) * r.height;
 			}
 		}		
-		*/
+		//
 
 		//case with 1 corner inside the other rect
 		else if (r.x < r2.x)
@@ -427,6 +482,8 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	}
 	result.push_back(bestRect);
 	return result;
+
+	*/
 }
 
 float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2)
