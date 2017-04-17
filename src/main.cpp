@@ -255,8 +255,21 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	Add the rectangle to result and remove from list
 	Repeat on remaining rectangles
 	*/
+
+	int bestIdx = 0;
+	int largestArea = boundingBoxes[0].area();
+
+	for (int i = 1; i < boundingBoxes.size(); i++)
+	{
+		if (boundingBoxes[i].area() > largestArea)
+		{
+			bestIdx = i;
+			largestArea = boundingBoxes[i].area();
+		}
+	}
+
 	
-	Rect r = boundingBoxes[0]; //find a better way to get the first/best bounding box.
+	Rect r = boundingBoxes[bestIdx]; //use the boundingbox with the largest area
 	
 	vector<Rect> result; //vector with the resulting boundingboxes
 
@@ -264,8 +277,8 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	vector<float> firstOut;
 
 
-	firstResult.push_back(boundingBoxes[0]);
-	firstOut.push_back(outResults[0].at<float>(0));
+	firstResult.push_back(boundingBoxes[bestIdx]);
+	firstOut.push_back(outResults[bestIdx].at<float>(0));
 
 	cout << "first result " << firstResult[0] << endl;
 
