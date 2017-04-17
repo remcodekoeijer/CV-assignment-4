@@ -20,24 +20,7 @@ float area_overlapping_rects(int xLength, int yLength, Rect r1, Rect r2);
 
 int main()
 {
-	//TODO:
-	/*
-	Load an image from the dataset.
-	Read the bounding box from the xml file
-	Show the image with bounding box
-	Extract hog features
-	Show the hog features in a window for verification
-
-	Create good positive and negative training sets
-	Set up SVM with the entire training set
-	Verify overfitting (cross validation)
-	Verify the training model? How?
-
-	Create a testing set
-	Search for the window with the highest score in an image and apply non-maximum suppresion
-	Done, i guess
-
-	*/
+	
 	//get images names--------------------------------------------------------------
 	vector<string> nameOfImagesPos;
 	vector<string> nameOfImagesNeg;
@@ -110,8 +93,8 @@ int main()
 	
 	//create labels
 	//hardcoded for now will change
-	int labels[145];
-	for (int i = 0; i < 145; i++)
+	int labels[150];
+	for (int i = 0; i < 150; i++)
 	{
 		if (i < numberOfImagesPos)
 			labels[i] = 1;
@@ -119,16 +102,9 @@ int main()
 			labels[i] = -1;
 	}
 	
-	//vector<int> labels;
-	//for (int i = 0; i < numberOfImagesPos + numberOfImagesNeg; i++)
-	//{
-	//	if (i < numberOfImagesPos)
-	//		labels.push_back(1);
-	//	else
-	//		labels.push_back(-1);
-	//}
+	
 
-	Mat labelsMat(145, 1, CV_32SC1, labels);
+	Mat labelsMat(150, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
 	//pos
@@ -157,7 +133,7 @@ int main()
 	//svm->setNu(0.5);
 	//svm->setP(0.01); // for EPSILON_SVR, epsilon in loss function?
 	//svm->setC(100.01); // From paper, soft classifier
-	//svm->setKernel(SVM::LINEAR);
+	svm->setKernel(SVM::CHI2);
 	//svm->setType(SVM::EPS_SVR);
 	svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-3));
 	//train the svm
@@ -165,53 +141,6 @@ int main()
 
 	//svm->train(tData);
 	
-	////get support vectors for the hogdescriptor
-	//Mat sv = svm->getSupportVectors();
-	//vector<float> hog_detector;
-	//const int sv_total = sv.rows;
-	//// get the decision function
-	//Mat alpha, svidx;
-	//double rho = svm->getDecisionFunction(0, alpha, svidx);
-	//CV_Assert(alpha.total() == 1 && svidx.total() == 1 && sv_total == 1);
-	//CV_Assert((alpha.type() == CV_64F && alpha.at<double>(0) == 1.) || (alpha.type() == CV_32F && alpha.at<float>(0) == 1.f));
-	//CV_Assert(sv.type() == CV_32F);
-	//hog_detector.clear();
-	//hog_detector.resize(sv.cols + 1);
-	//memcpy(&hog_detector[0], sv.ptr(), sv.cols * sizeof(hog_detector[0]));
-	//hog_detector[sv.cols] = (float)-rho;
-	//hog.setSVMDetector(hog_detector);
-	////detection
-	//vector<Rect> foundLocations;
-	//vector<double> foundWeights;
-	//Mat testImagePos = imread("data/positive/pug_101.jpg", IMREAD_GRAYSCALE);
-	//Mat testImageNeg = imread("data/negative/neg16.jpg", IMREAD_GRAYSCALE);
-	//
-	//Mat testResult;
-	//testImagePos.copyTo(testResult);
-	//// explanation of detectmultiscale parameters 
-	//// http://www.pyimagesearch.com/2015/11/16/hog-detectmultiscale-parameters-explained/
-	//// strangely enough, a smaller winstride doesn't give us more detections. 
-	//hog.detectMultiScale(testResult, foundLocations, foundWeights, 0, Size(16, 16), Size(0, 0), 1.05, 2.0, false);
-	//cout << foundLocations.size() << endl;
-	//double maxWeight = 0;
-	//int idx = -1;
-	////get the index for the highest weight
-	//for (int i = 0; i < foundWeights.size(); i++)
-	//{
-	//	if (foundWeights[i] > maxWeight)
-	//	{
-	//		maxWeight = foundWeights[i];
-	//		idx = i;
-	//	}
-	//}
-	////draw all rectangles
-	//*for (int i = 0; i < foundLocations.size(); i++)
-	//{
-	//	rectangle(testResult, foundLocations[i], Scalar(1, 1, 1, 1), 1, 8, 0);
-	//}*/
-	////draw the rectangle with the highest weight
-	//rectangle(testResult, foundLocations[idx], Scalar(1, 1, 1, 1), 1, 8, 0);
-	//imshow("testresult", testResult);
 
 	//save it
 	svm->save("svm.xml");
@@ -228,7 +157,7 @@ int main()
 	//----------------------------------------------------------------
 
 
-	string name = "data/test_doublepug.jpg";
+	string name = "data/test22.jpg";
 	Mat scaledOrig = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig2 = imread(name, IMREAD_GRAYSCALE);
 	Mat scaledOrig3 = imread(name, IMREAD_GRAYSCALE);
@@ -477,9 +406,15 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>
 {
 	vector<Rect> rects;
 	int step = 16;
+	float threshold = -0.1;
 	int winWidth = win.width;
 	int winHeight = win.height;
-	for (int i = 0; i<image.rows; i += step)
+	//create hog for prediction, same parameters as before
+	HOGDescriptor hog;
+	hog.winSize = Size(128, 128);
+	vector<float> descriptorsN2(1);
+	vector<Point> locations2(1);
+	for (int i = 0; i<image.rows; i += step) //bassically just slides a fixed window
 	{
 		if ((i + winHeight)>image.rows) { break; }
 		for (int j = 0; j< image.cols; j += step)
@@ -488,21 +423,14 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>
 			Rect rect(j, i, winWidth, winHeight);
 			//hog compute and svm
 			Mat subImg = image(rect);
-			HOGDescriptor hog;
-			hog.winSize = Size(128, 128);
-			vector<float> descriptorsN2(1);
-			vector<Point> locations2(1);
 			hog.compute(subImg, descriptorsN2, Size(16, 16), Size(0, 0), locations2);
-			//cout << "predict " << svm->predict(descriptorsN2) << endl;
 			Mat out;
-			svm->predict(descriptorsN2, out,true);
-			
-			//if (svm->predict(descriptorsN2) == 1)
-			if (out.at<float>(0) < -0.4)
+			svm->predict(descriptorsN2, out,true); //predict with decision function value
+			if (out.at<float>(0) < threshold)
 			{
 				cout << "predict out" << out << endl;
 				outResults.push_back(out);
-				rects.push_back(rect);
+				rects.push_back(rect); //if above threshold add on all rectangles
 			}
 		}
 	}
