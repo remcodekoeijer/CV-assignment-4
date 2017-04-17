@@ -268,8 +268,10 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 		}
 	}
 
+	//set the largest area rect in the first index
+	iter_swap(boundingBoxes.begin(), boundingBoxes.begin() + bestIdx);
 	
-	Rect r = boundingBoxes[bestIdx]; //use the boundingbox with the largest area
+	Rect r = boundingBoxes[0]; //use the boundingbox with the largest area
 	
 	vector<Rect> result; //vector with the resulting boundingboxes
 
@@ -277,8 +279,8 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap, 
 	vector<float> firstOut;
 
 
-	firstResult.push_back(boundingBoxes[bestIdx]);
-	firstOut.push_back(outResults[bestIdx].at<float>(0));
+	firstResult.push_back(boundingBoxes[0]);
+	firstOut.push_back(outResults[0].at<float>(0));
 
 	cout << "first result " << firstResult[0] << endl;
 
