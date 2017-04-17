@@ -69,7 +69,6 @@ int main()
 	{
 		resize(allImgsNeg[i], resizedNegImages[i], smallSize);
 	}
-	//imshow("testResizeNeg", resizedBoundingImages[49]); //weird not shown correclty
 
 	//hog stuff them-------------------------------------------------------------
 	Size hogWinStride = Size(16, 16);
@@ -94,7 +93,6 @@ int main()
 	}
 	
 	//create labels
-	//hardcoded for now will change
 	int labels[150];
 	for (int i = 0; i < 150; i++)
 	{
@@ -104,8 +102,6 @@ int main()
 			labels[i] = -1;
 	}
 	
-	
-
 	Mat labelsMat(150, 1, CV_32SC1, labels);
 	//pass them on the training method
 	Mat descriptorsT(numberOfImagesPos + numberOfImagesNeg, descriptorsP[0].size(), CV_32FC1);
@@ -197,7 +193,6 @@ int main()
 		vector<Rect> getWindows4 = get_sliding_windows(scaled4, slidingWindowSize, svm, outResults);
 		vector<Rect> getWindows5 = get_sliding_windows(scaled5, slidingWindowSize, svm, outResults);
 
-
 		scaledRects.push_back(getWindowsOrig);
 		scaledRects.push_back(getWindows1);
 		scaledRects.push_back(getWindows2);
@@ -216,8 +211,6 @@ int main()
 				int count = 0;
 				for (; loc != end; ++loc)
 				{
-					//cout << "weights " << getWindows[count] << endl;
-					//if(foundWeights[count]<1)
 					rectangle(imagePyramid[i], *loc, Scalar(255, 255, 255), 2, 8, 0); //image pyramid
 
 					Rect rectResized = Rect(loc->x * scaledFactor, loc->y * scaledFactor, loc->width * scaledFactor, loc->height * scaledFactor);
@@ -229,11 +222,7 @@ int main()
 			}
 			//imshow("window" + i, imagePyramid[i]);
 		}
-		//	cout << "out size " << outResults.size() << " rects size " << scaledRectsResized.size() <<" test "<< outResults[0].at<float>(0) <<  " test " << outResults[1].at<float>(0)<< endl;
-		//imshow("windowAllRectangle", scaledOrig2);
 		imwrite("data/outputAll/windowAllRectangle" + to_string(num) + ".jpg", scaledOrig2);
-
-
 
 		vector<Rect> nmsRect;
 		if (!scaledRectsResized.empty())
@@ -256,17 +245,6 @@ int main()
 
 vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap_thres)
 {
-	//TODO
-	/*
-	Get the best rectangle / sort them (what is the best rectangle? largest size?)
-	Loop over other rectangles and see how much they overlap (intersection over union)
-	If exceeding overlap, throw them away
-	Add the rectangle to result and remove from list
-	Repeat on remaining rectangles
-
-	check: http://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/ 
-	*/
-
 	vector<Rect> result;
 
 	//get size and check if it's non-empty. 
@@ -315,8 +293,6 @@ vector<Rect> non_maximum_suppression(vector<Rect> boundingBoxes, float overlap_t
 	}
 
 	return result;
-
-
 
 /* OLD
 	int bestIdx = 0;
@@ -495,7 +471,7 @@ vector<Rect> get_sliding_windows(Mat& image, Size win, Ptr<SVM> svm, vector<Mat>
 {
 	vector<Rect> rects;
 	int step = 16;
-	float threshold = -0.1;
+	float threshold = -0.35;
 	int winWidth = win.width;
 	int winHeight = win.height;
 	//create hog for prediction, same parameters as before
